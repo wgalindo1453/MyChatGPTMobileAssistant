@@ -1,4 +1,4 @@
-![MyChatGPT](https://github.com/wgalindo1453/chatgptdemo.gif)
+<img src='chatgptdemo.gif' title='Video Walkthrough' width='' alt='Video Walkthrough' />
 
 # MyChatGPT
 
