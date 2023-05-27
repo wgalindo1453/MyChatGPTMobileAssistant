@@ -9,6 +9,7 @@ MyChatGPT is an Android application developed using the OpenAI GPT-4 model. It a
 - Speech-to-text input
 - Natural Language Understanding powered by GPT-4
 - Real-time text-to-speech output
+- Language Output Selection (English, Spanish, French, German) using Gtts library
 
 ## Installation
 
