@@ -1,11 +1,14 @@
 package com.example.mychatgpt;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
@@ -15,15 +18,23 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ScrollView;
+import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
@@ -102,6 +113,11 @@ public class VoiceFragment extends Fragment {
             // Permission has already been granted
             Toast.makeText(getContext(), "Permissions granted to record audio", Toast.LENGTH_LONG).show();
         }
+
+
+
+
+
     }
 
     @Override
@@ -110,6 +126,51 @@ public class VoiceFragment extends Fragment {
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_voice, container, false);
 
+        //Initialize the Spinner
+        Spinner spinner = (Spinner) view.findViewById(R.id.spinner_language);
+        RecyclerView recyclerChat = view.findViewById(R.id.recycler_chat);
+        List<Message> messageList = new ArrayList<>();
+        ChatAdapter chatAdapter = new ChatAdapter(messageList);
+        recyclerChat.setLayoutManager(new LinearLayoutManager(getContext()));
+        recyclerChat.setAdapter(chatAdapter);
+
+
+
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this.getActivity(),
+                R.array.languages, android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parentView, View selectedItemView, int position, long id) {
+                // You may want to get the language code here from the selected item
+                String selectedLanguage = (String) parentView.getItemAtPosition(position);
+                // Then you can set the language for your TextToSpeech instance here
+                switch (selectedLanguage) {
+                    case "English":
+                        mTextToSpeech.setLanguage(Locale.US);
+                        break;
+                    case "French":
+                        mTextToSpeech.setLanguage(Locale.FRENCH);
+                        break;
+                    case "German":
+                        mTextToSpeech.setLanguage(Locale.GERMAN);
+                        break;
+                    case "Spanish":
+                        mTextToSpeech.setLanguage(new Locale("es", "ES"));
+                        break;
+                    // Add more languages here
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parentView) {
+                // If no language is selected, default to US English
+                mTextToSpeech.setLanguage(Locale.US);
+            }
+            ProgressDialog progressDialog = new ProgressDialog(getActivity());
+
+        });
 
         // Initialize Speech Recognizer
         mSpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(getContext());
@@ -135,12 +196,13 @@ public class VoiceFragment extends Fragment {
             @Override
             public void onReadyForSpeech(Bundle params) {
                 Log.i("VoiceFragment", "Ready for speech");
+                getActivity().runOnUiThread(() -> mMicrophoneIcon.setVisibility(View.VISIBLE));
             }
 
             @Override
             public void onBeginningOfSpeech() {
                 Log.i("VoiceFragment", "Beginning of speech");
-                getActivity().runOnUiThread(() -> mMicrophoneIcon.setVisibility(View.VISIBLE));
+
             }
 
             @Override
@@ -172,6 +234,11 @@ public class VoiceFragment extends Fragment {
             }
 
             private void sendToGptApi(String text) {
+                // Show a progress dialog
+                ProgressDialog progressDialog = new ProgressDialog(getActivity());
+                progressDialog.setMessage("Loading...");
+                progressDialog.show();
+
                 OkHttpClient client = new OkHttpClient.Builder()
                         .connectTimeout(60, TimeUnit.SECONDS)
                         .writeTimeout(60, TimeUnit.SECONDS)
@@ -191,7 +258,7 @@ public class VoiceFragment extends Fragment {
 
                 // Create the request
                 String GPT_4_API_URL = "https://api.openai.com/v1/chat/completions";
-                String GPT_4_API_KEY = "YOUR_API_KEY";
+                String GPT_4_API_KEY  = "YOUR_API_KEY";
                 Request request = new Request.Builder()
                         .url(GPT_4_API_URL)
                         .addHeader("Authorization", "Bearer " + GPT_4_API_KEY)
@@ -206,6 +273,9 @@ public class VoiceFragment extends Fragment {
                         // Handle failure
                         e.printStackTrace();
                        //log error
+                        if (progressDialog.isShowing()) {
+                            progressDialog.dismiss();
+                        }
 
                     }
 
@@ -221,9 +291,25 @@ public class VoiceFragment extends Fragment {
                                 String result = jsonObject.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content").trim();
                                 Log.i("VoiceFragment", "Result: " + result);
                                 convertTextToSpeech(result);
+                                getActivity().runOnUiThread(() -> {
+                                    SimpleDateFormat formatter= new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+                                    Date date = new Date(System.currentTimeMillis());
+                                    messageList.add(new Message("GPT: " + result, formatter.format(date)));
+                                    chatAdapter.notifyDataSetChanged();
+
+
+
+                                    // Scroll to the bottom of the chat
+                                    final ScrollView scrollChat = view.findViewById(R.id.scroll_chat);
+                                    scrollChat.post(() -> scrollChat.fullScroll(View.FOCUS_DOWN));
+                                });
+
                             } catch (JSONException e) {
                                 e.printStackTrace();
                             }
+                        }
+                        if (progressDialog.isShowing()) {
+                            progressDialog.dismiss();
                         }
                     }
 
