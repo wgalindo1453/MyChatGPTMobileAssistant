@@ -1,4 +1,4 @@
-![MyChatGPT](https://example.com/mychatgptdemo.gif)
+![MyChatGPT]([https://example.com/mychatgptdemo.gif](https://i.imgur.com/HcbguzG.mp4))
 
 # MyChatGPT
 
